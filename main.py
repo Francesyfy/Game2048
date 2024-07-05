@@ -1,6 +1,6 @@
 import pygame as pg
 import numpy as np
-
+import random
 
 WINDOW_SIZE = 500
 BOARD_SIZE = 400
@@ -35,19 +35,18 @@ class Board:
 
 
 class Block(Board):
-    def __init__(self, surface, row, col):
+    def __init__(self, surface, index):
         super().__init__(surface)
         self.color = (255, 255, 0)
-        self.val = 0
-        self.row = row
-        self.col = col
+        self.val = 2
+        self.index = index
         self.font = pg.font.SysFont('Arial',40)
     
-    def get_rect(self):
-        return self.cells[self.row * 4 + self.col] 
+    def get_row_col(self):
+        return self.index // 4, self.index % 4
 
     def draw(self):
-        rect = pg.draw.rect(self.surface, self.color, self.get_rect())
+        rect = pg.draw.rect(self.surface, self.color, self.cells[self.index])
         text = self.font.render(str(self.val), True, (0,0,0))
         self.surface.blit(text, text.get_rect(center=rect.center))
 
@@ -59,24 +58,41 @@ class Game:
         self.loop = True
         self.board = Board(self.surface)
         self.cell_values = np.full((4, 4), None)
-
-        self.cell_values[0, 2] = Block(self.surface, 0, 2)
-        self.cell_values[0, 3] = Block(self.surface, 0, 3)
-        self.cell_values[2, 2] = Block(self.surface, 2, 2)
+        self.available_cells = set(range(16))
 
     def main(self):
+        # initialize with 2 random cells with number 2
+        for _ in range(2):
+            self.generate_block()
+        # start game
         while self.loop:
             self.game_loop()
         pg.quit()
+    
+    def generate_block(self):
+        """
+        Generate a new random 2 for an empty cell
+        """
+        index = random.choice(tuple(self.available_cells))
+        self.available_cells.remove(index)
+        block =  Block(self.surface, index)
+        self.cell_values[block.get_row_col()] = block
 
     def move_left(self, cell_values):
+        """
+        Move all blocks to the left
+        """
         new_cv = np.full(cell_values.shape, None)
         for i, row in enumerate(cell_values):
             blocks = [x for x in row if x]
             new_cv[i, :len(blocks)] = blocks
         return new_cv
-
-    def move(self, direction):
+    
+    def update(self, direction):
+        """
+        Update existing blocks based on direction
+        Generate a new random block
+        """
         # move blocks in cell_values matrix to new positions
         if direction == DIR_UP:
             self.cell_values = self.move_left(self.cell_values.T).T
@@ -89,25 +105,21 @@ class Game:
             temp = np.flip(self.cell_values, axis=1)
             self.cell_values = np.flip(self.move_left(temp), axis=1)
 
-        # update blocks with new row & col values
+        # update blocks with new index values
+        # index = row * 4 + col
+        self.available_cells = set(range(16))
         for i in range(len(self.cell_values)):
             for j in range(len(self.cell_values[0])):
                 if self.cell_values[i, j]:
-                    self.cell_values[i, j].row = i
-                    self.cell_values[i, j].col = j
+                    index = i * 4 + j
+                    self.cell_values[i, j].index = index
+                    self.available_cells.remove(index)
+
+        # generate new block after each move
+        self.generate_block()
             
 
     def game_loop(self):
-        keys = pg.key.get_pressed()
-        if keys[pg.K_UP]:
-            self.move(DIR_UP)
-        if keys[pg.K_DOWN]:
-            self.move(DIR_DOWN)
-        if keys[pg.K_LEFT]:
-            self.move(DIR_LEFT)
-        if keys[pg.K_RIGHT]:
-            self.move(DIR_RIGHT)
-
         self.surface.fill((250, 248, 240))
         self.board.draw()
         for row in self.cell_values:
@@ -116,6 +128,15 @@ class Game:
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 self.loop = False
+            elif event.type == pg.KEYDOWN:
+                if event.key == pg.K_UP:
+                    self.update(DIR_UP)
+                elif event.key == pg.K_DOWN:
+                    self.update(DIR_DOWN)
+                elif event.key == pg.K_LEFT:
+                    self.update(DIR_LEFT)
+                elif event.key == pg.K_RIGHT:
+                    self.update(DIR_RIGHT)
         pg.display.update()
 
 
