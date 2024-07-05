@@ -41,12 +41,15 @@ class Block(Board):
         self.val = 0
         self.row = row
         self.col = col
+        self.font = pg.font.SysFont('Arial',40)
     
     def get_rect(self):
         return self.cells[self.row * 4 + self.col] 
 
     def draw(self):
-        pg.draw.rect(self.surface, self.color, self.get_rect())
+        rect = pg.draw.rect(self.surface, self.color, self.get_rect())
+        text = self.font.render(str(self.val), True, (0,0,0))
+        self.surface.blit(text, text.get_rect(center=rect.center))
 
 
 class Game:
