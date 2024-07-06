@@ -16,12 +16,14 @@ class Board:
         s = (BOARD_SIZE - gap) / 4
         for i in range(4):
             for j in range(4):
-                x = self.pos + gap + s*j
-                y = self.pos + gap + s*i
-                self.cells.append(pg.Rect(x, y, s-gap, s-gap))
+                x = self.pos + gap + s * j
+                y = self.pos + gap + s * i
+                self.cells.append(pg.Rect(x, y, s - gap, s - gap))
 
     def draw(self, surface):
-        pg.draw.rect(surface, self.bg_color, pg.Rect(self.pos, self.pos, self.size, self.size))
+        pg.draw.rect(
+            surface, self.bg_color, pg.Rect(self.pos, self.pos, self.size, self.size)
+        )
         for cell in self.cells:
             pg.draw.rect(surface, self.cell_color, cell)
 
@@ -33,12 +35,12 @@ class Block(Board):
         self.color2 = (235, 60, 10)
         self.val = 1
         self.index = index
-        self.font = pg.font.SysFont('Arial', self.size//10)
+        self.font = pg.font.SysFont("Arial", self.size // 10)
         self.text_color = (55, 50, 40)
-    
+
     def get_row_col(self):
         return self.index // 4, self.index % 4
-    
+
     def get_color(self):
         c1 = np.array(self.color1)
         c2 = np.array(self.color2)
@@ -46,7 +48,7 @@ class Block(Board):
 
     def draw(self, surface):
         rect = pg.draw.rect(surface, self.get_color(), self.cells[self.index])
-        text = self.font.render(str(2 ** self.val), True, self.text_color)
+        text = self.font.render(str(2**self.val), True, self.text_color)
         surface.blit(text, text.get_rect(center=rect.center))
 
 
@@ -65,14 +67,14 @@ class Game:
         # initialize with 2 random cells with number 2
         for _ in range(2):
             self.generate_block()
-    
+
     def generate_block(self):
         """
         Generate a new random 2 for an empty cell
         """
         index = random.choice(tuple(self.available_cells))
         self.available_cells.remove(index)
-        block =  Block(index)
+        block = Block(index)
         self.cell_values[block.get_row_col()] = block
 
     def move_left(self, cell_values):
@@ -87,17 +89,17 @@ class Game:
             for ele in row:
                 if ele:
                     # add up adjacent numbers that are the same
-                    if  (not merged) and blocks and blocks[-1].val == ele.val:
+                    if (not merged) and blocks and blocks[-1].val == ele.val:
                         blocks[-1].val += 1
                         merged = True
                     else:
                         blocks.append(ele)
                         merged = False
-            new_cv[i, :len(blocks)] = blocks
+            new_cv[i, : len(blocks)] = blocks
         # if cell_values didn't change, this is an invalid move
         changed = not (cell_values == new_cv).all()
         return changed, new_cv
-    
+
     def update(self, direction):
         """
         Update existing blocks based on direction
@@ -131,4 +133,3 @@ class Game:
 
             # generate new block after each move
             self.generate_block()
-            
