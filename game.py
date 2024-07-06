@@ -31,7 +31,7 @@ class Block(Board):
         super().__init__()
         self.color1 = (255, 255, 235)
         self.color2 = (235, 60, 10)
-        self.val = 9
+        self.val = 1
         self.index = index
         self.font = pg.font.SysFont('Arial', self.size//10)
         self.text_color = (55, 50, 40)
@@ -55,6 +55,16 @@ class Game:
         self.board = Board()
         self.cell_values = np.full((4, 4), None)
         self.available_cells = set(range(16))
+        for _ in range(2):
+            self.generate_block()
+
+    def reset(self):
+        # reset cells
+        self.cell_values = np.full((4, 4), None)
+        self.available_cells = set(range(16))
+        # initialize with 2 random cells with number 2
+        for _ in range(2):
+            self.generate_block()
     
     def generate_block(self):
         """
