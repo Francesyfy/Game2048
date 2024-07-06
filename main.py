@@ -37,17 +37,24 @@ class Board:
 class Block(Board):
     def __init__(self, surface, index):
         super().__init__(surface)
-        self.color = (255, 255, 0)
-        self.val = 2
+        self.color1 = (255, 255, 235)
+        self.color2 = (235, 60, 10)
+        self.val = 1
         self.index = index
-        self.font = pg.font.SysFont('Arial',40)
+        self.font = pg.font.SysFont('Arial', 35)
+        self.text_color = (55, 50, 40)
     
     def get_row_col(self):
         return self.index // 4, self.index % 4
+    
+    def get_color(self):
+        c1 = np.array(self.color1)
+        c2 = np.array(self.color2)
+        return tuple((c2 - c1) * (self.val - 1) / 10 + c1)
 
     def draw(self):
-        rect = pg.draw.rect(self.surface, self.color, self.cells[self.index])
-        text = self.font.render(str(self.val), True, (0,0,0))
+        rect = pg.draw.rect(self.surface, self.get_color(), self.cells[self.index])
+        text = self.font.render(str(2 ** self.val), True, self.text_color)
         self.surface.blit(text, text.get_rect(center=rect.center))
 
 
@@ -81,12 +88,25 @@ class Game:
     def move_left(self, cell_values):
         """
         Move all blocks to the left
+        Check if cell_values changed
         """
         new_cv = np.full(cell_values.shape, None)
         for i, row in enumerate(cell_values):
-            blocks = [x for x in row if x]
+            blocks = []
+            merged = False
+            for ele in row:
+                if ele:
+                    # add up adjacent numbers that are the same
+                    if  (not merged) and blocks and blocks[-1].val == ele.val:
+                        blocks[-1].val += 1
+                        merged = True
+                    else:
+                        blocks.append(ele)
+                        merged = False
             new_cv[i, :len(blocks)] = blocks
-        return new_cv
+        # if cell_values didn't change, this is an invalid move
+        changed = not (cell_values == new_cv).all()
+        return changed, new_cv
     
     def update(self, direction):
         """
@@ -95,28 +115,32 @@ class Game:
         """
         # move blocks in cell_values matrix to new positions
         if direction == DIR_UP:
-            self.cell_values = self.move_left(self.cell_values.T).T
+            changed, new_cv = self.move_left(self.cell_values.T)
+            new_cv = new_cv.T
         elif direction == DIR_DOWN:
-            temp = np.flip(self.cell_values.T)
-            self.cell_values = np.flip(self.move_left(temp).T)
+            changed, new_cv = self.move_left(np.flip(self.cell_values.T))
+            new_cv = np.flip(new_cv.T)
         elif direction == DIR_LEFT:
-            self.cell_values = self.move_left(self.cell_values)
+            changed, new_cv = self.move_left(self.cell_values)
         else:
-            temp = np.flip(self.cell_values, axis=1)
-            self.cell_values = np.flip(self.move_left(temp), axis=1)
+            changed, new_cv = self.move_left(np.flip(self.cell_values, axis=1))
+            new_cv = np.flip(new_cv, axis=1)
 
-        # update blocks with new index values
-        # index = row * 4 + col
-        self.available_cells = set(range(16))
-        for i in range(len(self.cell_values)):
-            for j in range(len(self.cell_values[0])):
-                if self.cell_values[i, j]:
-                    index = i * 4 + j
-                    self.cell_values[i, j].index = index
-                    self.available_cells.remove(index)
+        if changed:
+            self.cell_values = new_cv
 
-        # generate new block after each move
-        self.generate_block()
+            # update blocks with new index values
+            # index = row * 4 + col
+            self.available_cells = set(range(16))
+            for i in range(len(self.cell_values)):
+                for j in range(len(self.cell_values[0])):
+                    if self.cell_values[i, j]:
+                        index = i * 4 + j
+                        self.cell_values[i, j].index = index
+                        self.available_cells.remove(index)
+
+            # generate new block after each move
+            self.generate_block()
             
 
     def game_loop(self):
