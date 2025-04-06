@@ -27,7 +27,8 @@ def main():
                             game_status = "win"
             # no available cells, lose
             if game_status == "game" and (not g.available_cells):
-                game_status = "lose"
+                if g.if_lose():
+                    game_status = "lose"
             # display results
             if game_status != "game":
                 s = pg.Surface((WINDOW_SIZE, WINDOW_SIZE), pg.SRCALPHA)
@@ -74,13 +75,13 @@ def main():
             elif event.type == pg.KEYDOWN:
                 # move
                 if event.key == pg.K_UP:
-                    g.update(DIR_UP)
+                    g.update_and_generate(DIR_UP)
                 elif event.key == pg.K_DOWN:
-                    g.update(DIR_DOWN)
+                    g.update_and_generate(DIR_DOWN)
                 elif event.key == pg.K_LEFT:
-                    g.update(DIR_LEFT)
+                    g.update_and_generate(DIR_LEFT)
                 elif event.key == pg.K_RIGHT:
-                    g.update(DIR_RIGHT)
+                    g.update_and_generate(DIR_RIGHT)
                 # restart
                 elif event.key == pg.K_SPACE:
                     game_status = "game"

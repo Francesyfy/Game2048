@@ -60,6 +60,20 @@ class Game:
         for _ in range(2):
             self.generate_block()
 
+    def print_board(self):
+        """Print the current board state"""
+        print("\nCurrent board state:")
+        for i in range(4):
+            row = []
+            for j in range(4):
+                block = self.cell_values[i, j]
+                if block is None:
+                    row.append("None")
+                else:
+                    row.append(str(2**block.val))
+            print(" ".join(f"{val:>4}" for val in row))
+        print()
+
     def reset(self):
         # reset cells
         self.cell_values = np.full((4, 4), None)
@@ -77,10 +91,32 @@ class Game:
         block = Block(index)
         self.cell_values[block.get_row_col()] = block
 
+    def has_board_changed(self, old_state, new_state):
+        """
+        Check if the board state has changed by comparing values and positions
+        """
+        if old_state.shape != new_state.shape:
+            return True
+            
+        for i in range(old_state.shape[0]):
+            for j in range(old_state.shape[1]):
+                old_block = old_state[i, j]
+                new_block = new_state[i, j]
+                
+                # If one is None and the other isn't, state changed
+                if (old_block is None) != (new_block is None):
+                    return True
+                    
+                # If both are blocks, compare their values
+                if old_block is not None and new_block is not None:
+                    if old_block.val != new_block.val:
+                        return True
+                        
+        return False
+
     def move_left(self, cell_values):
         """
-        Move all blocks to the left
-        Check if cell_values changed
+        Move all blocks to the left, return the new board state
         """
         new_cv = np.full(cell_values.shape, None)
         for i, row in enumerate(cell_values):
@@ -88,36 +124,40 @@ class Game:
             merged = False
             for ele in row:
                 if ele:
+                    # Create a copy of the block to avoid modifying the original
+                    block_copy = Block(ele.index)
+                    block_copy.val = ele.val
+                    
                     # add up adjacent numbers that are the same
-                    if (not merged) and blocks and blocks[-1].val == ele.val:
+                    if (not merged) and blocks and blocks[-1].val == block_copy.val:
                         blocks[-1].val += 1
                         merged = True
                     else:
-                        blocks.append(ele)
+                        blocks.append(block_copy)
                         merged = False
             new_cv[i, : len(blocks)] = blocks
-        # if cell_values didn't change, this is an invalid move
-        changed = not (cell_values == new_cv).all()
-        return changed, new_cv
+        return new_cv
 
     def update(self, direction):
         """
         Update existing blocks based on direction
-        Generate a new random block
+        Returns whether the board state changed
         """
         # move blocks in cell_values matrix to new positions
         if direction == DIR_UP:
-            changed, new_cv = self.move_left(self.cell_values.T)
+            new_cv = self.move_left(self.cell_values.T)
             new_cv = new_cv.T
         elif direction == DIR_DOWN:
-            changed, new_cv = self.move_left(np.flip(self.cell_values.T))
+            new_cv = self.move_left(np.flip(self.cell_values.T))
             new_cv = np.flip(new_cv.T)
         elif direction == DIR_LEFT:
-            changed, new_cv = self.move_left(self.cell_values)
+            new_cv = self.move_left(self.cell_values)
         elif direction == DIR_RIGHT:
-            changed, new_cv = self.move_left(np.flip(self.cell_values, axis=1))
+            new_cv = self.move_left(np.flip(self.cell_values, axis=1))
             new_cv = np.flip(new_cv, axis=1)
 
+        # check if the board state has changed
+        changed = self.has_board_changed(self.cell_values, new_cv)
         if changed:
             self.cell_values = new_cv
 
@@ -131,5 +171,44 @@ class Game:
                         self.cell_values[i, j].index = index
                         self.available_cells.remove(index)
 
-            # generate new block after each move
+        return changed
+
+    def update_and_generate(self, direction):
+        """
+        Update existing blocks based on direction and generate new block if changed
+        """
+        changed = self.update(direction)
+        if changed:
             self.generate_block()
+            print("after move")
+            self.print_board()
+
+    def if_lose(self):
+        """
+        Check if there are valid next moves
+        """
+        if len(self.available_cells) > 0:
+            return False
+            
+        # Check all possible moves
+        # Up
+        new_cv = self.move_left(self.cell_values.T)
+        if self.has_board_changed(self.cell_values.T, new_cv):
+            return False
+            
+        # Down
+        new_cv = self.move_left(np.flip(self.cell_values.T))
+        if self.has_board_changed(np.flip(self.cell_values.T), new_cv):
+            return False
+            
+        # Left
+        new_cv = self.move_left(self.cell_values)
+        if self.has_board_changed(self.cell_values, new_cv):
+            return False
+            
+        # Right
+        new_cv = self.move_left(np.flip(self.cell_values, axis=1))
+        if self.has_board_changed(np.flip(self.cell_values, axis=1), new_cv):
+            return False
+            
+        return True
